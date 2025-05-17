@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Scheduler Website Flow</title>
+    <!-- Include Mermaid library from CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .mermaid {
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            max-width: 100%;
+            overflow-x: auto;
+        }
+        /* Ensure nodes have proper spacing */
+        .mermaid svg {
+            min-width: 800px;
+            max-width: 1200px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Interactive Scheduler Website Flow</h1>
+    <div class="mermaid">
+        flowchart TD
+            %% Main Entry Point
+            A[Website Homepage]:::ovalLightblue --> B[CPU Process Scheduling]:::purple
+            A --> C[Disk Scheduling]:::indigo
+            
+            %% CPU Process Scheduling Branch
+            B --> D[CPU Input Method]:::diamondPurple
+            D -->|Manual Entry| E[Manual Process Entry]:::blue
+            D -->|Random Generation| F[Random Process Generation]:::teal
+            
+            E --> G[Manual Entry Fields]:::blue
+            G --> H[Enter Process ID]
+            G --> I[Enter Arrival Time]
+            G --> J[Enter Burst Time]
+            G --> K[Enter Priority]
+            G --> L[Add Process]
+            
+            G --> M[CPU Algorithm Selection]:::diamondPurple
+            F --> M
+            
+            M --> N[Basic Algorithms]:::orange
+            M --> O[Priority Based Algorithms]:::yellow
+            M --> P[Advanced Algorithms]:::pink
+            
+            N --> Q[First Come First Serve]
+            N --> R[Shortest Job First]
+            N --> S[Round Robin]
+            
+            O --> T[Priority Scheduling]
+            O --> U[Multi Level Priority]
+            
+            P --> V[Adaptive Quantum Inspired Learning Scheduler]
+            
+            N --> W[CPU Outputs]:::green
+            O --> W
+            P --> W
+            
+            W --> X[Gantt Chart]
+            W --> Y[Process Timeline]
+            W --> Z[Average Waiting Time]
+            W --> AA[Average Turnaround Time]
+            W --> AB[CPU Utilization]
+            
+            W -->|Modify or Restart| AC[Return to CPU Input]:::ovalGray
+            AC --> D
+            
+            %% Disk Scheduling Branch
+            C --> AD[Disk Input Method]:::diamondIndigo
+            AD --> AE[Disk Parameters Entry]:::blue
+            AE --> AF[Enter Disk Size]
+            AE --> AG[Enter Initial Head Position]
+            
+            AE --> AH[Request Queue Input]:::diamondBlue
+            AH -->|Manual Entry| AI[Manual Request Queue]:::blue
+            AH -->|Random Generation| AJ[Random Request Queue Generation]:::blue
+            
+            AI --> AK[Disk Algorithm Selection]:::diamondIndigo
+            AJ --> AK
+            
+            AK --> AL[Disk Algorithms]:::orange
+            AL --> AM[First Come First Serve]
+            AL --> AN[Shortest Seek Time First]
+            AL --> AO[SCAN]
+            AL --> AP[C-SCAN]
+            AL --> AQ[LOOK]
+            AL --> AR[C-LOOK]
+            
+            AL --> AS[Disk Outputs]:::green
+            AS --> AT[Disk Head Movement]
+            AS --> AU[Current Head Position]
+            AS --> AV[Total Seeks]
+            AS --> AW[Average Seek Time]
+            
+            AS -->|Modify or Restart| AX[Return to Disk Input]:::ovalGray
+            AX --> AD
+
+            %% Styling Classes for Colors and Shapes
+            classDef ovalLightblue fill:#ADD8E6,stroke:#333,stroke-width:2px
+            classDef purple fill:#800080,stroke:#333,stroke-width:2px,color:#fff
+            classDef indigo fill:#4B0082,stroke:#333,stroke-width:2px,color:#fff
+            classDef diamondPurple fill:#800080,stroke:#333,stroke-width:2px,color:#fff
+            classDef diamondIndigo fill:#4B0082,stroke:#333,stroke-width:2px,color:#fff
+            classDef diamondBlue fill:#0000FF,stroke:#333,stroke-width:2px,color:#fff
+            classDef blue fill:#0000FF,stroke:#333,stroke-width:2px,color:#fff
+            classDef teal fill:#008080,stroke:#333,stroke-width:2px,color:#fff
+            classDef orange fill:#FFA500,stroke:#333,stroke-width:2px
+            classDef yellow fill:#FFFF00,stroke:#333,stroke-width:2px
+            classDef pink fill:#FFC1CC,stroke:#333,stroke-width:2px
+            classDef green fill:#008000,stroke:#333,stroke-width:2px
+            classDef ovalGray fill:#808080,stroke:#333,stroke-width:2px,color:#fff
+    </div>
+
+    <script>
+        // Initialize Mermaid
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'default',
+            flowchart: {
+                useMaxWidth: true,
+                htmlLabels: true
+            }
+        });
+    </script>
+</body>
+</html>
