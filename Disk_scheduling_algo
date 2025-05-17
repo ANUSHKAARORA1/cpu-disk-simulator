@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CPU Scheduling Simulator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+
+body {
+        font-family: 'Inter', sans-serif;
+        background-color: #f0f4f8;
+    }
+    
+    .disk-track {
+        height: 4px;
+        background-color: #cbd5e0;
+        position: relative;
+    }
+    
+    .disk-head {
+        width: 12px;
+        height: 12px;
+        background-color: #e53e3e;
+        border-radius: 50%;
+        position: absolute;
+        top: -4px;
+        transform: translateX(-50%);
+        transition: left 0.5s ease-in-out;
+        z-index: 10;
+    }
+    
+    .request-point {
+        width: 8px;
+        height: 8px;
+        background-color: #4299e1;
+        border-radius: 50%;
+        position: absolute;
+        top: -2px;
+        transform: translateX(-50%);
+        z-index: 5;
+    }
+    
+    .request-point.processed {
+        background-color: #48bb78;
+    }
+    
+    .request-point.current {
+        background-color: #f6ad55;
+        width: 10px;
+        height: 10px;
+        top: -3px;
+    }
+    
+    .path-line {
+        position: absolute;
+        height: 2px;
+        background-color: #a0aec0;
+        z-index: 1;
+        transform: translateY(1px);
+    }
+    
+    .chart-container {
+        height: 300px;
+        position: relative;
+        margin-top: 40px;
+        background-color: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    }
+    
+    .chart-y-axis {
+        position: absolute;
+        left: 50px;
+        top: 20px;
+        bottom: 40px;
+        width: 1px;
+        background-color: #a0aec0;
+    }
+    
+    .chart-x-axis {
+        position: absolute;
+        left: 50px;
+        right: 20px;
+        bottom: 40px;
+        height: 1px;
+        background-color: #a0aec0;
+    }
+    
+    .chart-point {
+        position: absolute;
+        width: 8px;
+        height: 8px;
+        background-color: #4299e1;
+        border-radius: 50%;
+        transform: translate(-50%, -50%);
+    }
+    
+    .chart-line {
+        position: absolute;
+        background-color: #4299e1;
+        height: 2px;
+        transform-origin: left center;
+    }
+    
+    .y-label {
+        position: absolute;
+        left: 10px;
+        transform: translateY(-50%);
+        font-size: 12px;
+        color: #4a5568;
+    }
+    
+    .x-label {
+        position: absolute;
+        bottom: 20px;
+        transform: translateX(-50%);
+        font-size: 12px;
+        color: #4a5568;
+    }
+    
+    .algorithm-card {
+        transition: all 0.3s ease;
+    }
+    
+    .algorithm-card:hover {
+        transform: translateY(-2px);
+    }
+    
+    .algorithm-card.selected {
+        border-color: #4299e1;
+        background-color: #ebf8ff;
+    }
+</style>
+    <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+        <div class="flex flex-col md:flex-row gap-6">
+            <div class="w-full md:w-1/2">
+                <h2 class="text-xl font-semibold mb-4">Configuration</h2>
+                
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Disk Size (tracks)</label>
+                    <div class="flex items-center">
+                        <input type="range" id="diskSize" min="100" max="200" value="100" class="w-full mr-3">
+                        <span id="diskSizeValue" class="text-sm font-medium text-gray-700 w-12">100</span>
+                    </div>
+                </div>
+                
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Initial Head Position</label>
+                    <div class="flex items-center">
+                        <input type="range" id="initialHead" min="0" max="100" value="50" class="w-full mr-3">
+                        <span id="initialHeadValue" class="text-sm font-medium text-gray-700 w-12">50</span>
+                    </div>
+                </div>
+                
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Request Queue</label>
+                    <div class="flex">
+                        <input type="text" id="requestQueue" class="flex-1 border border-gray-300 rounded-l-md px-3 py-2 text-sm" placeholder="e.g., 23, 89, 132, 42, 187, 11, 65">
+                        <button id="generateRandom" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded-r-md text-sm transition-colors">Random</button>
+                    </div>
+                    <p class="text-xs text-gray-500 mt-1">Enter comma-separated track numbers or generate random requests</p>
+                </div>
+            </div>
+            
+            <div class="w-full md:w-1/2">
+                <h2 class="text-xl font-semibold mb-4">Select Algorithm</h2>
+                
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div class="algorithm-card border rounded-md p-3 cursor-pointer" data-algorithm="fcfs">
+                        <h3 class="font-medium">FCFS</h3>
+                        <p class="text-xs text-gray-600">First Come First Served</p>
+                    </div>
+                    <div class="algorithm-card border rounded-md p-3 cursor-pointer" data-algorithm="sstf">
+                        <h3 class="font-medium">SSTF</h3>
+                        <p class="text-xs text-gray-600">Shortest Seek Time First</p>
+                    </div>
+                    <div class="algorithm-card border rounded-md p-3 cursor-pointer" data-algorithm="scan">
+                        <h3 class="font-medium">SCAN</h3>
+                        <p class="text-xs text-gray-600">Elevator Algorithm</p>
+                    </div>
+                    <div class="algorithm-card border rounded-md p-3 cursor-pointer" data-algorithm="cscan">
+                        <h3 class="font-medium">C-SCAN</h3>
+                        <p class="text-xs text-gray-600">Circular SCAN</p>
+                    </div>
+                    <div class="algorithm-card border rounded-md p-3 cursor-pointer" data-algorithm="look">
+                        <h3 class="font-medium">LOOK</h3>
+                        <p class="text-xs text-gray-600">Modified SCAN</p>
+                    </div>
+                    <div class="algorithm-card border rounded-md p-3 cursor-pointer" data-algorithm="clook">
+                        <h3 class="font-medium">C-LOOK</h3>
+                        <p class="text-xs text-gray-600">Circular LOOK</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="flex justify-center mt-6">
+            <button id="startSimulation" class="bg-green-500 hover:bg-green-600 text-white px-6 py-2 rounded-md font-medium transition-colors">Start Simulation</button>
+            <button id="resetSimulation" class="ml-4 bg-gray-200 hover:bg-gray-300 text-gray-800 px-6 py-2 rounded-md font-medium transition-colors">Reset</button>
+        </div>
+    </div>
+    
+    <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+        <h2 class="text-xl font-semibold mb-4">Disk Head Movement</h2>
+        
+        <div class="mb-6 relative">
+            <div class="flex justify-between text-sm text-gray-600 mb-1">
+                <span>0</span>
+                <span id="maxTrack">100</span>
+            </div>
+            <div class="disk-track">
+                <div class="disk-head" id="diskHead" style="left: 50%;"></div>
+            </div>
+        </div>
+        
+        <div class="flex flex-wrap gap-4 mb-4">
+            <div class="bg-gray-100 rounded-md px-4 py-2">
+                <span class="text-sm text-gray-600">Current Position:</span>
+                <span id="currentPosition" class="font-medium ml-1">50</span>
+            </div>
+            <div class="bg-gray-100 rounded-md px-4 py-2">
+                <span class="text-sm text-gray-600">Total Seeks:</span>
+                <span id="totalSeeks" class="font-medium ml-1">0</span>
+            </div>
+            <div class="bg-gray-100 rounded-md px-4 py-2">
+                <span class="text-sm text-gray-600">Average Seek:</span>
+                <span id="averageSeek" class="font-medium ml-1">0</span>
+            </div>
+            <div class="bg-gray-100 rounded-md px-4 py-2">
+                <span class="text-sm text-gray-600">Algorithm:</span>
+                <span id="currentAlgorithm" class="font-medium ml-1">-</span>
+            </div>
+        </div>
+        
+        <div class="chart-container p-4" id="chartContainer">
+            <div class="chart-y-axis"></div>
+            <div class="chart-x-axis"></div>
+            <div class="y-label" style="top: 20px;">Track</div>
+            <div class="y-label" style="bottom: 40px;">0</div>
+            <div class="x-label" style="left: 50px;">0</div>
+            <div class="x-label" style="right: 20px;">Time</div>
+        </div>
+    </div>
+    
+    <div class="bg-white rounded-lg shadow-md p-6">
+        <h2 class="text-xl font-semibold mb-4">Algorithm Explanation</h2>
+        
+        <div id="algorithmExplanation" class="text-gray-700">
+            <p class="text-center text-gray-500 italic">Select an algorithm to see its explanation</p>
+        </div>
+    </div>
+</div>
+
+<script>
+    // DOM Elements
+    const diskSizeInput = document.getElementById('diskSize');
+    const diskSizeValue = document.getElementById('diskSizeValue');
+    const initialHeadInput = document.getElementById('initialHead');
+    const initialHeadValue = document.getElementById('initialHeadValue');
+    const requestQueueInput = document.getElementById('requestQueue');
+    const generateRandomBtn = document.getElementById('generateRandom');
+    const algorithmCards = document.querySelectorAll('.algorithm-card');
+    const startSimulationBtn = document.getElementById('startSimulation');
+    const resetSimulationBtn = document.getElementById('resetSimulation');
+    const diskHead = document.getElementById('diskHead');
+    const currentPositionEl = document.getElementById('currentPosition');
+    const totalSeeksEl = document.getElementById('totalSeeks');
+    const averageSeekEl = document.getElementById('averageSeek');
+    const currentAlgorithmEl = document.getElementById('currentAlgorithm');
+    const maxTrackEl = document.getElementById('maxTrack');
+    const chartContainer = document.getElementById('chartContainer');
+    const algorithmExplanation = document.getElementById('algorithmExplanation');
+
+    // State variables
+    let diskSize = 100;
+    let initialHeadPosition = 50;
+    let requestQueue = [];
+    let selectedAlgorithm = null;
+    let isSimulationRunning = false;
+    let currentPosition = initialHeadPosition;
+    let totalSeekDistance = 0;
+    let simulationSpeed = 500; // ms
+    let simulationStep = 0;
+    let simulationPath = [];
+
+    // Update UI based on input changes
+    diskSizeInput.addEventListener('input', () => {
+        diskSize = parseInt(diskSizeInput.value);
+        diskSizeValue.textContent = diskSize;
+        maxTrackEl.textContent = diskSize;
+        
+        // Update initial head position max value
+        initialHeadInput.max = diskSize;
+        if (parseInt(initialHeadInput.value) > diskSize) {
+            initialHeadInput.value = diskSize;
+            initialHeadPosition = diskSize;
+            initialHeadValue.textContent = diskSize;
+        }
+    });
+
+    initialHeadInput.addEventListener('input', () => {
+        initialHeadPosition = parseInt(initialHeadInput.value);
+        initialHeadValue.textContent = initialHeadPosition;
+        currentPosition = initialHeadPosition;
+        currentPositionEl.textContent = initialHeadPosition;
+        updateDiskHeadPosition(initialHeadPosition);
+    });
+
+    // Generate random request queue
+    generateRandomBtn.addEventListener('click', () => {
+        const count = Math.floor(Math.random() * 8) + 5; // 5-12 requests
+        const requests = [];
+        for (let i = 0; i < count; i++) {
+            requests.push(Math.floor(Math.random() * diskSize));
+        }
+        requestQueueInput.value = requests.join(', ');
+    });
+
+    // Select algorithm
+    algorithmCards.forEach(card => {
+        card.addEventListener('click', () => {
+            algorithmCards.forEach(c => c.classList.remove('selected'));
+            card.classList.add('selected');
+            selectedAlgorithm = card.dataset.algorithm;
+            updateAlgorithmExplanation(selectedAlgorithm);
+        });
+    });
+
+    // Start simulation
+    startSimulationBtn.addEventListener('click', () => {
+        if (isSimulationRunning) return;
+        
+        // Parse request queue
+        const queueText = requestQueueInput.value.trim();
+        if (!queueText) {
+            alert('Please enter a request queue or generate random requests');
+            return;
+        }
+        
+        requestQueue = queueText.split(',').map(num => {
+            const parsed = parseInt(num.trim());
+            if (isNaN(parsed) || parsed < 0 || parsed > diskSize) {
+                return null;
+            }
+            return parsed;
+        }).filter(num => num !== null);
+        
+        if (requestQueue.length === 0) {
+            alert('Please enter valid track numbers between 0 and ' + diskSize);
+            return;
+        }
+        
+        if (!selectedAlgorithm) {
+            alert('Please select a disk scheduling algorithm');
+            return;
+        }
+        
+        // Start simulation
+        isSimulationRunning = true;
+        startSimulationBtn.disabled = true;
+        startSimulationBtn.classList.add('opacity-50');
+        currentPosition = initialHeadPosition;
+        totalSeekDistance = 0;
+        simulationStep = 0;
+        
+        // Clear previous visualization
+        clearVisualization();
+        
+        // Run selected algorithm
+        simulationPath = runDiskSchedulingAlgorithm(selectedAlgorithm, initialHeadPosition, requestQueue, diskSize);
+        
+        // Start visualization
+        currentAlgorithmEl.textContent = getAlgorithmFullName(selectedAlgorithm);
+        visualizeSimulation();
+    });
+
+    // Reset simulation
+    resetSimulationBtn.addEventListener('click', () => {
+        isSimulationRunning = false;
+        startSimulationBtn.disabled = false;
+        startSimulationBtn.classList.remove('opacity-50');
+        currentPosition = initialHeadPosition;
+        totalSeekDistance = 0;
+        simulationStep = 0;
+        
+        // Reset UI
+        updateDiskHeadPosition(initialHeadPosition);
+        currentPositionEl.textContent = initialHeadPosition;
+        totalSeeksEl.textContent = '0';
+        averageSeekEl.textContent = '0';
+        
+        // Clear visualization
+        clearVisualization();
+    });
+
+    // Update disk head position
+    function updateDiskHeadPosition(position) {
+        const percentage = (position / diskSize) * 100;
+        diskHead.style.left = `${percentage}%`;
+    }
+
+    // Clear visualization
+    function clearVisualization() {
+        // Remove request points and path lines
+        document.querySelectorAll('.request-point, .path-line').forEach(el => el.remove());
+        
+        // Clear chart
+        document.querySelectorAll('.chart-point, .chart-line, .x-label:not(:first-child):not(:last-child)').forEach(el => el.remove());
+    }
+
+    // Visualize simulation
+    function visualizeSimulation() {
+        if (simulationStep >= simulationPath.length) {
+            isSimulationRunning = false;
+            startSimulationBtn.disabled = false;
+            startSimulationBtn.classList.remove('opacity-50');
+            return;
+        }
+        
+        const nextPosition = simulationPath[simulationStep];
+        const seekDistance = Math.abs(nextPosition - currentPosition);
+        totalSeekDistance += seekDistance;
+        
+        // Update UI
+        animateDiskHead(currentPosition, nextPosition, () => {
+            currentPosition = nextPosition;
+            currentPositionEl.textContent = currentPosition;
+            totalSeeksEl.textContent = totalSeekDistance;
+            
+            if (simulationStep > 0) {
+                const avgSeek = (totalSeekDistance / simulationStep).toFixed(2);
+                averageSeekEl.textContent = avgSeek;
+            }
+            
+            // Draw chart point
+            drawChartPoint(simulationStep, nextPosition);
+            
+            // Draw chart line if not first point
+            if (simulationStep > 0) {
+                const prevPosition = simulationPath[simulationStep - 1];
+                drawChartLine(simulationStep - 1, prevPosition, simulationStep, nextPosition);
+            }
+            
+            simulationStep++;
+            setTimeout(visualizeSimulation, simulationSpeed);
+        });
+    }
+
+    // Animate disk head movement
+    function animateDiskHead(from, to, callback) {
+        // Add path line
+        const trackEl = document.querySelector('.disk-track');
+        const pathLine = document.createElement('div');
+        pathLine.className = 'path-line';
+        
+        const startPercent = (from / diskSize) * 100;
+        const endPercent = (to / diskSize) * 100;
+        const left = Math.min(startPercent, endPercent);
+        const width = Math.abs(endPercent - startPercent);
+        
+        pathLine.style.left = `${left}%`;
+        pathLine.style.width = `${width}%`;
+        trackEl.appendChild(pathLine);
+        
+        // Add or update request point
+        let requestPoint = document.querySelector(`.request-point[data-track="${to}"]`);
+        if (!requestPoint) {
+            requestPoint = document.createElement('div');
+            requestPoint.className = 'request-point';
+            requestPoint.dataset.track = to;
+            requestPoint.style.left = `${endPercent}%`;
+            trackEl.appendChild(requestPoint);
+        }
+        
+        // Mark previous current point as processed
+        document.querySelectorAll('.request-point.current').forEach(el => {
+            el.classList.remove('current');
+            el.classList.add('processed');
+        });
+        
+        // Mark this point as current
+        requestPoint.classList.add('current');
+        
+        // Animate head movement
+        updateDiskHeadPosition(to);
+        
+        // Call callback after animation completes
+        setTimeout(callback, 500);
+    }
+
+    // Draw chart point
+    function drawChartPoint(step, position) {
+        const chartWidth = chartContainer.clientWidth - 70;
+        const chartHeight = chartContainer.clientHeight - 60;
+        
+        const x = 50 + (step * chartWidth / (simulationPath.length - 1 || 1));
+        const y = chartHeight - (position * chartHeight / diskSize) + 20;
+        
+        const point = document.createElement('div');
+        point.className = 'chart-point';
+        point.style.left = `${x}px`;
+        point.style.top = `${y}px`;
+        
+        // Add x-axis label for this point
+        if (step % Math.max(1, Math.floor(simulationPath.length / 5)) === 0) {
+            const label = document.createElement('div');
+            label.className = 'x-label';
+            label.style.left = `${x}px`;
+            label.textContent = step;
+            chartContainer.appendChild(label);
+        }
+        
+        chartContainer.appendChild(point);
+    }
+
+    // Draw chart line
+    function drawChartLine(fromStep, fromPos, toStep, toPos) {
+        const chartWidth = chartContainer.clientWidth - 70;
+        const chartHeight = chartContainer.clientHeight - 60;
+        
+        const x1 = 50 + (fromStep * chartWidth / (simulationPath.length - 1 || 1));
+        const y1 = chartHeight - (fromPos * chartHeight / diskSize) + 20;
+        
+        const x2 = 50 + (toStep * chartWidth / (simulationPath.length - 1 || 1));
+        const y2 = chartHeight - (toPos * chartHeight / diskSize) + 20;
+        
+        const length = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+        const angle = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
+        
+        const line = document.createElement('div');
+        line.className = 'chart-line';
+        line.style.left = `${x1}px`;
+        line.style.top = `${y1}px`;
+        line.style.width = `${length}px`;
+        line.style.transform = `rotate(${angle}deg)`;
+        
+        chartContainer.appendChild(line);
+    }
+
+    // Run disk scheduling algorithm
+    function runDiskSchedulingAlgorithm(algorithm, head, queue, diskSize) {
+        const path = [head];
+        let currentHead = head;
+        let remainingRequests = [...queue];
+        
+        switch (algorithm) {
+            case 'fcfs':
+                // First Come First Served - process in order
+                remainingRequests.forEach(track => {
+                    path.push(track);
+                });
+                break;
+                
+            case 'sstf':
+                // Shortest Seek Time First
+                while (remainingRequests.length > 0) {
+                    // Find closest track
+                    let minDistance = Infinity;
+                    let closestIndex = -1;
+                    
+                    remainingRequests.forEach((track, index) => {
+                        const distance = Math.abs(track - currentHead);
+                        if (distance < minDistance) {
+                            minDistance = distance;
+                            closestIndex = index;
+                        }
+                    });
+                    
+                    const nextTrack = remainingRequests[closestIndex];
+                    path.push(nextTrack);
+                    currentHead = nextTrack;
+                    remainingRequests.splice(closestIndex, 1);
+                }
+                break;
+                
+            case 'scan':
+                // SCAN (Elevator) - go in one direction until end, then reverse
+                // Sort remaining requests
+                remainingRequests.sort((a, b) => a - b);
+                
+                // Find requests greater than current head
+                const greaterRequests = remainingRequests.filter(track => track >= currentHead);
+                const lesserRequests = remainingRequests.filter(track => track < currentHead);
+                
+                // Process greater requests in ascending order
+                greaterRequests.forEach(track => {
+                    path.push(track);
+                });
+                
+                // Go to the end of disk
+                if (greaterRequests.length > 0 && greaterRequests[greaterRequests.length - 1] < diskSize) {
+                    path.push(diskSize);
+                }
+                
+                // Process lesser requests in descending order
+                lesserRequests.sort((a, b) => b - a).forEach(track => {
+                    path.push(track);
+                });
+                break;
+                
+            case 'cscan':
+                // C-SCAN - go in one direction, then jump to beginning and continue
+                // Sort remaining requests
+                remainingRequests.sort((a, b) => a - b);
+                
+                // Find requests greater than current head
+                const greaterRequestsC = remainingRequests.filter(track => track >= currentHead);
+                const lesserRequestsC = remainingRequests.filter(track => track < currentHead);
+                
+                // Process greater requests in ascending order
+                greaterRequestsC.forEach(track => {
+                    path.push(track);
+                });
+                
+                // Go to the end of disk if not already there
+                if (greaterRequestsC.length > 0 && greaterRequestsC[greaterRequestsC.length - 1] < diskSize) {
+                    path.push(diskSize);
+                }
+                
+                // Jump to beginning
+                path.push(0);
+                
+                // Process lesser requests in ascending order
+                lesserRequestsC.forEach(track => {
+                    path.push(track);
+                });
+                break;
+                
+            case 'look':
+                // LOOK - like SCAN but don't go to the end
+                // Sort remaining requests
+                remainingRequests.sort((a, b) => a - b);
+                
+                // Find requests greater than current head
+                const greaterRequestsL = remainingRequests.filter(track => track >= currentHead);
+                const lesserRequestsL = remainingRequests.filter(track => track < currentHead);
+                
+                // Process greater requests in ascending order
+                greaterRequestsL.forEach(track => {
+                    path.push(track);
+                });
+                
+                // Process lesser requests in descending order
+                lesserRequestsL.sort((a, b) => b - a).forEach(track => {
+                    path.push(track);
+                });
+                break;
+                
+            case 'clook':
+                // C-LOOK - like C-SCAN but don't go to the end
+                // Sort remaining requests
+                remainingRequests.sort((a, b) => a - b);
+                
+                // Find requests greater than current head
+                const greaterRequestsCL = remainingRequests.filter(track => track >= currentHead);
+                const lesserRequestsCL = remainingRequests.filter(track => track < currentHead);
+                
+                // Process greater requests in ascending order
+                greaterRequestsCL.forEach(track => {
+                    path.push(track);
+                });
+                
+                // Jump to lowest request
+                if (lesserRequestsCL.length > 0) {
+                    path.push(lesserRequestsCL[0]);
+                    
+                    // Process remaining lesser requests in ascending order
+                    lesserRequestsCL.slice(1).forEach(track => {
+                        path.push(track);
+                    });
+                }
+                break;
+        }
+        
+        return path;
+    }
+
+    // Get algorithm full name
+    function getAlgorithmFullName(algorithm) {
+        const names = {
+            'fcfs': 'First Come First Served (FCFS)',
+            'sstf': 'Shortest Seek Time First (SSTF)',
+            'scan': 'SCAN (Elevator)',
+            'cscan': 'Circular SCAN (C-SCAN)',
+            'look': 'LOOK',
+            'clook': 'Circular LOOK (C-LOOK)'
+        };
+        
+        return names[algorithm] || algorithm;
+    }
+
+    // Update algorithm explanation
+    function updateAlgorithmExplanation(algorithm) {
+        const explanations = {
+            'fcfs': `
+                <h3 class="font-medium mb-2">First Come First Served (FCFS)</h3>
+                <p class="mb-2">The simplest disk scheduling algorithm that services requests in the order they arrive in the queue.</p>
+                <p class="mb-2"><strong>How it works:</strong> The disk head moves to tracks in exactly the same order as they were requested, regardless of their location.</p>
+                <p class="mb-2"><strong>Advantages:</strong> Simple to implement, fair to all requests.</p>
+                <p><strong>Disadvantages:</strong> Can result in long seek times if requests are far apart, leading to poor performance.</p>
+            `,
+            'sstf': `
+                <h3 class="font-medium mb-2">Shortest Seek Time First (SSTF)</h3>
+                <p class="mb-2">Selects the request that requires the least head movement from the current position.</p>
+                <p class="mb-2"><strong>How it works:</strong> Always moves to the closest track in the request queue.</p>
+                <p class="mb-2"><strong>Advantages:</strong> Better performance than FCFS, reduces average seek time.</p>
+                <p><strong>Disadvantages:</strong> May cause starvation of some requests if new closer requests keep arriving. Not optimal in all cases.</p>
+            `,
+            'scan': `
+                <h3 class="font-medium mb-2">SCAN (Elevator Algorithm)</h3>
+                <p class="mb-2">The disk arm starts at one end and moves toward the other end, servicing requests along the way.</p>
+                <p class="mb-2"><strong>How it works:</strong> Moves in one direction until it reaches the end of the disk, then reverses direction.</p>
+                <p class="mb-2"><strong>Advantages:</strong> More efficient than FCFS and SSTF, prevents starvation.</p>
+                <p><strong>Disadvantages:</strong> Requests at just-visited locations may have to wait for a full scan cycle.</p>
+            `,
+            'cscan': `
+                <h3 class="font-medium mb-2">Circular SCAN (C-SCAN)</h3>
+                <p class="mb-2">A variant of SCAN that treats the disk as a circular list.</p>
+                <p class="mb-2"><strong>How it works:</strong> Moves from one end to the other servicing requests, then jumps back to the beginning without servicing requests during the return trip.</p>
+                <p class="mb-2"><strong>Advantages:</strong> Provides more uniform wait time than SCAN.</p>
+                <p><strong>Disadvantages:</strong> Slightly higher seek time than SCAN in some cases.</p>
+            `,
+            'look': `
+                <h3 class="font-medium mb-2">LOOK</h3>
+                <p class="mb-2">A variant of SCAN that doesn't go all the way to the end of the disk.</p>
+                <p class="mb-2"><strong>How it works:</strong> Goes only as far as the last request in each direction, then reverses.</p>
+                <p class="mb-2"><strong>Advantages:</strong> More efficient than SCAN as it avoids unnecessary movement to the ends of the disk.</p>
+                <p><strong>Disadvantages:</strong> Implementation is slightly more complex than SCAN.</p>
+            `,
+            'clook': `
+                <h3 class="font-medium mb-2">Circular LOOK (C-LOOK)</h3>
+                <p class="mb-2">A variant of C-SCAN that doesn't go all the way to the end of the disk.</p>
+                <p class="mb-2"><strong>How it works:</strong> Goes only as far as the last request in the forward direction, then jumps to the lowest request without servicing in between.</p>
+                <p class="mb-2"><strong>Advantages:</strong> Combines the benefits of C-SCAN and LOOK for more uniform wait times and efficient movement.</p>
+                <p><strong>Disadvantages:</strong> Slightly more complex to implement than simpler algorithms.</p>
+            `
+        };
+        
+        algorithmExplanation.innerHTML = explanations[algorithm] || '<p class="text-center text-gray-500 italic">Select an algorithm to see its explanation</p>';
+    }
+
+    // Initialize
+    updateDiskHeadPosition(initialHeadPosition);
+</script>
