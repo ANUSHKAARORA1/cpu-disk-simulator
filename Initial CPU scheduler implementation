@@ -1,0 +1,1435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CPU Scheduling Simulator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+    body {
+        font-family: 'Inter', sans-serif;
+        background-color: #f0f4f8;
+    }
+    
+    .process-block {
+        transition: all 0.3s ease;
+    }
+    
+    .timeline-marker {
+        position: absolute;
+        height: 10px;
+        width: 2px;
+        background-color: #475569;
+        bottom: -10px;
+    }
+    
+    .timeline-label {
+        position: absolute;
+        font-size: 10px;
+        color: #475569;
+        bottom: -25px;
+        transform: translateX(-50%);
+    }
+    
+    .process-row {
+        height: 40px;
+        position: relative;
+    }
+    
+    .algorithm-card {
+        transition: transform 0.2s ease;
+    }
+    
+    .algorithm-card:hover {
+        transform: translateY(-5px);
+    }
+    
+    .gantt-chart {
+        overflow-x: auto;
+        position: relative;
+        padding-bottom: 30px;
+    }
+
+    .tab-button {
+        transition: all 0.2s ease;
+    }
+
+    .tab-button.active {
+        background-color: #4f46e5;
+        color: white;
+    }
+
+    .tab-content {
+        display: none;
+    }
+
+    .tab-content.active {
+        display: block;
+    }
+    
+    .modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+        z-index: 1000;
+        overflow-y: auto;
+    }
+    
+    .modal-content {
+        background-color: white;
+        margin: 2rem auto;
+        padding: 2rem;
+        border-radius: 0.5rem;
+        max-width: 800px;
+        max-height: 80vh;
+        overflow-y: auto;
+    }
+    
+    .definition-card {
+        transition: all 0.2s ease;
+    }
+    
+    .definition-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    }
+</style>
+    <main class="container mx-auto px-4 py-8">
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-2xl font-bold text-gray-800">Interactive Scheduler</h2>
+            <button id="show-definitions" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md transition-colors flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+                </svg>
+                Algorithm Definitions
+            </button>
+        </div>
+        
+        <div class="bg-white rounded-xl shadow-md p-6 mb-8">
+            <h2 class="text-xl font-semibold mb-4">Process Input</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Process ID</label>
+                    <input type="text" id="process-id" placeholder="P1" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Arrival Time</label>
+                    <input type="number" id="arrival-time" placeholder="0" min="0" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Burst Time</label>
+                    <input type="number" id="burst-time" placeholder="4" min="1" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Priority (lower = higher)</label>
+                    <input type="number" id="priority" placeholder="1" min="1" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+            </div>
+            
+            <div class="flex flex-wrap justify-between items-center gap-2">
+                <button id="add-process" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition-colors">
+                    Add Process
+                </button>
+                <button id="generate-random" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md transition-colors">
+                    Generate Random Processes
+                </button>
+                <button id="clear-processes" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md transition-colors">
+                    Clear All
+                </button>
+            </div>
+        </div>
+        
+        <div class="bg-white rounded-xl shadow-md p-6 mb-8">
+            <h2 class="text-xl font-semibold mb-4">Process Table</h2>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead>
+                        <tr>
+                            <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Process ID</th>
+                            <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Arrival Time</th>
+                            <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Burst Time</th>
+                            <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Priority</th>
+                            <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="process-table-body" class="bg-white divide-y divide-gray-200">
+                        <!-- Process rows will be added here -->
+                    </tbody>
+                </table>
+            </div>
+            <div id="no-processes-message" class="text-center py-4 text-gray-500">
+                No processes added yet. Add processes above to visualize scheduling.
+            </div>
+        </div>
+        
+        <div class="bg-white rounded-xl shadow-md p-6 mb-8">
+            <h2 class="text-xl font-semibold mb-4">Scheduling Algorithms</h2>
+            
+            <div class="mb-4">
+                <div class="flex overflow-x-auto space-x-2 pb-2">
+                    <button class="tab-button active px-4 py-2 rounded-md bg-gray-200 whitespace-nowrap" data-tab="basic">
+                        Basic Algorithms
+                    </button>
+                    <button class="tab-button px-4 py-2 rounded-md bg-gray-200 whitespace-nowrap" data-tab="priority">
+                        Priority-based
+                    </button>
+                    <button class="tab-button px-4 py-2 rounded-md bg-gray-200 whitespace-nowrap" data-tab="advanced">
+                        Advanced Algorithms
+                    </button>
+                </div>
+            </div>
+            
+            <div class="tab-content active" id="basic-tab">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div class="algorithm-card bg-white rounded-xl shadow-md p-6 border-l-4 border-blue-500 hover:shadow-lg">
+                        <h3 class="text-lg font-semibold mb-2">First Come First Served (FCFS)</h3>
+                        <p class="text-gray-600 mb-4">Processes are executed in the order they arrive in the ready queue.</p>
+                        <button data-algorithm="fcfs" class="visualize-btn bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition-colors w-full">
+                            Visualize FCFS
+                        </button>
+                    </div>
+                    
+                    <div class="algorithm-card bg-white rounded-xl shadow-md p-6 border-l-4 border-green-500 hover:shadow-lg">
+                        <h3 class="text-lg font-semibold mb-2">Shortest Job First (SJF)</h3>
+                        <p class="text-gray-600 mb-4">Process with the smallest burst time is selected for execution first.</p>
+                        <button data-algorithm="sjf" class="visualize-btn bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md transition-colors w-full">
+                            Visualize SJF
+                        </button>
+                    </div>
+                    
+                    <div class="algorithm-card bg-white rounded-xl shadow-md p-6 border-l-4 border-purple-500 hover:shadow-lg">
+                        <h3 class="text-lg font-semibold mb-2">Round Robin (RR)</h3>
+                        <p class="text-gray-600 mb-4">Each process is assigned a fixed time slice in a cyclic way.</p>
+                        <div class="flex items-center mb-4">
+                            <label class="block text-sm font-medium text-gray-700 mr-2">Time Quantum:</label>
+                            <input type="number" id="time-quantum" value="2" min="1" class="w-20 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
+                        </div>
+                        <button data-algorithm="rr" class="visualize-btn bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-md transition-colors w-full">
+                            Visualize RR
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="tab-content" id="priority-tab">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="algorithm-card bg-white rounded-xl shadow-md p-6 border-l-4 border-orange-500 hover:shadow-lg">
+                        <h3 class="text-lg font-semibold mb-2">Priority Scheduling</h3>
+                        <p class="text-gray-600 mb-4">Processes are scheduled based on priority. Lower priority number means higher priority.</p>
+                        <div class="flex items-center mb-4">
+                            <label class="block text-sm font-medium text-gray-700 mr-2">Preemptive:</label>
+                            <input type="checkbox" id="priority-preemptive" class="w-4 h-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500">
+                        </div>
+                        <button data-algorithm="priority" class="visualize-btn bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-md transition-colors w-full">
+                            Visualize Priority Scheduling
+                        </button>
+                    </div>
+                    
+                    <div class="algorithm-card bg-white rounded-xl shadow-md p-6 border-l-4 border-teal-500 hover:shadow-lg">
+                        <h3 class="text-lg font-semibold mb-2">Multi-level Priority Scheduling</h3>
+                        <p class="text-gray-600 mb-4">Processes are divided into multiple queues based on priority with different scheduling algorithms.</p>
+                        <div class="grid grid-cols-2 gap-2 mb-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">High Priority Queue</label>
+                                <select id="high-priority-algo" class="w-full px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500">
+                                    <option value="fcfs">FCFS</option>
+                                    <option value="sjf">SJF</option>
+                                    <option value="rr" selected>Round Robin</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">RR Time Quantum</label>
+                                <input type="number" id="high-priority-quantum" value="2" min="1" class="w-full px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Low Priority Queue</label>
+                                <select id="low-priority-algo" class="w-full px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500">
+                                    <option value="fcfs" selected>FCFS</option>
+                                    <option value="sjf">SJF</option>
+                                    <option value="rr">Round Robin</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">RR Time Quantum</label>
+                                <input type="number" id="low-priority-quantum" value="4" min="1" class="w-full px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500">
+                            </div>
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Priority Threshold (1-5 = High, >5 = Low)</label>
+                            <input type="number" id="priority-threshold" value="5" min="1" class="w-full px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500">
+                        </div>
+                        <button data-algorithm="multilevel" class="visualize-btn bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-md transition-colors w-full">
+                            Visualize Multi-level Priority
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="tab-content" id="advanced-tab">
+                <div class="algorithm-card bg-white rounded-xl shadow-md p-6 border-l-4 border-pink-500 hover:shadow-lg">
+                    <h3 class="text-lg font-semibold mb-2">Adaptive Quantum-Inspired Learning Scheduler (AQLS)</h3>
+                    <p class="text-gray-600 mb-4">An advanced algorithm that dynamically adjusts time quantum based on process behavior and learning from execution patterns.</p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Initial Time Quantum</label>
+                            <input type="number" id="aqls-initial-quantum" value="2" min="1" class="w-full px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Learning Rate (0.1-1.0)</label>
+                            <input type="number" id="aqls-learning-rate" value="0.5" min="0.1" max="1.0" step="0.1" class="w-full px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Priority Weight (0.1-1.0)</label>
+                            <input type="number" id="aqls-priority-weight" value="0.3" min="0.1" max="1.0" step="0.1" class="w-full px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Burst Time Weight (0.1-1.0)</label>
+                            <input type="number" id="aqls-burst-weight" value="0.7" min="0.1" max="1.0" step="0.1" class="w-full px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500">
+                        </div>
+                    </div>
+                    <button data-algorithm="aqls" class="visualize-btn bg-pink-600 hover:bg-pink-700 text-white px-4 py-2 rounded-md transition-colors w-full">
+                        Visualize AQLS
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <div id="results-section" class="bg-white rounded-xl shadow-md p-6 mb-8 hidden">
+            <h2 class="text-xl font-semibold mb-4">Visualization Results</h2>
+            <div class="mb-6">
+                <h3 id="current-algorithm" class="text-lg font-medium mb-2">First Come First Served (FCFS)</h3>
+                <div class="flex flex-wrap gap-2 text-sm">
+                    <div class="bg-gray-100 px-3 py-1 rounded-full">
+                        Average Waiting Time: <span id="avg-waiting-time" class="font-semibold">0.0</span>
+                    </div>
+                    <div class="bg-gray-100 px-3 py-1 rounded-full">
+                        Average Turnaround Time: <span id="avg-turnaround-time" class="font-semibold">0.0</span>
+                    </div>
+                    <div class="bg-gray-100 px-3 py-1 rounded-full">
+                        CPU Utilization: <span id="cpu-utilization" class="font-semibold">0%</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mb-6">
+                <h4 class="text-md font-medium mb-3">Gantt Chart</h4>
+                <div class="gantt-chart bg-gray-50 border border-gray-200 rounded-md p-4">
+                    <div id="gantt-chart-container" class="relative">
+                        <!-- Gantt chart will be rendered here -->
+                    </div>
+                </div>
+            </div>
+            
+            <div>
+                <h4 class="text-md font-medium mb-3">Process Timeline</h4>
+                <div id="process-timeline" class="space-y-2">
+                    <!-- Process timelines will be rendered here -->
+                </div>
+            </div>
+
+            <div id="algorithm-details" class="mt-6 p-4 bg-gray-50 rounded-md border border-gray-200 hidden">
+                <h4 class="text-md font-medium mb-2">Algorithm Details</h4>
+                <div id="algorithm-details-content" class="text-sm">
+                    <!-- Algorithm-specific details will be shown here -->
+                </div>
+            </div>
+        </div>
+    </main>
+    
+    <!-- Definitions Modal -->
+    <div id="definitions-modal" class="modal">
+        <div class="modal-content">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold text-gray-800">CPU Scheduling Algorithm Definitions</h2>
+                <button id="close-definitions" class="text-gray-500 hover:text-gray-700">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            
+            <div class="space-y-6">
+                <!-- Basic Algorithms -->
+                <div>
+                    <h3 class="text-xl font-semibold mb-3 text-blue-700">Basic Scheduling Algorithms</h3>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="definition-card bg-white p-4 rounded-lg border-l-4 border-blue-500 shadow">
+                            <h4 class="text-lg font-medium mb-2">First Come First Served (FCFS)</h4>
+                            <p class="text-gray-700">FCFS is the simplest scheduling algorithm. In this scheme, the process that requests the CPU first is allocated the CPU first. It is a non-preemptive algorithm.</p>
+                            <div class="mt-3">
+                                <h5 class="font-medium text-gray-800">Characteristics:</h5>
+                                <ul class="list-disc list-inside text-gray-700 mt-1">
+                                    <li>Simple and easy to implement</li>
+                                    <li>Non-preemptive in nature</li>
+                                    <li>Can cause "convoy effect" where short processes wait behind long ones</li>
+                                    <li>Not optimal for time-sharing systems</li>
+                                </ul>
+                            </div>
+                        </div>
+                        
+                        <div class="definition-card bg-white p-4 rounded-lg border-l-4 border-green-500 shadow">
+                            <h4 class="text-lg font-medium mb-2">Shortest Job First (SJF)</h4>
+                            <p class="text-gray-700">SJF selects the process with the smallest execution time to execute next. It can be either preemptive or non-preemptive.</p>
+                            <div class="mt-3">
+                                <h5 class="font-medium text-gray-800">Characteristics:</h5>
+                                <ul class="list-disc list-inside text-gray-700 mt-1">
+                                    <li>Provides minimum average waiting time for a given set of processes</li>
+                                    <li>Can be preemptive (SRTF) or non-preemptive</li>
+                                    <li>Requires knowledge of process burst time in advance</li>
+                                    <li>May lead to starvation for longer processes</li>
+                                </ul>
+                            </div>
+                        </div>
+                        
+                        <div class="definition-card bg-white p-4 rounded-lg border-l-4 border-purple-500 shadow">
+                            <h4 class="text-lg font-medium mb-2">Round Robin (RR)</h4>
+                            <p class="text-gray-700">Round Robin is designed specifically for time-sharing systems. It assigns a fixed time unit (quantum) to each process in a cyclic order.</p>
+                            <div class="mt-3">
+                                <h5 class="font-medium text-gray-800">Characteristics:</h5>
+                                <ul class="list-disc list-inside text-gray-700 mt-1">
+                                    <li>Preemptive scheduling algorithm</li>
+                                    <li>Time quantum is a critical parameter</li>
+                                    <li>Provides good response time for short processes</li>
+                                    <li>Fair allocation of CPU among processes</li>
+                                    <li>Higher context switching overhead</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Priority-based Algorithms -->
+                <div>
+                    <h3 class="text-xl font-semibold mb-3 text-orange-700">Priority-based Scheduling Algorithms</h3>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="definition-card bg-white p-4 rounded-lg border-l-4 border-orange-500 shadow">
+                            <h4 class="text-lg font-medium mb-2">Priority Scheduling</h4>
+                            <p class="text-gray-700">In Priority Scheduling, each process is assigned a priority value. The process with the highest priority (lowest priority number) is executed first.</p>
+                            <div class="mt-3">
+                                <h5 class="font-medium text-gray-800">Characteristics:</h5>
+                                <ul class="list-disc list-inside text-gray-700 mt-1">
+                                    <li>Can be preemptive or non-preemptive</li>
+                                    <li>Processes with same priority are scheduled in FCFS order</li>
+                                    <li>May lead to starvation of low-priority processes</li>
+                                    <li>Aging can be used to prevent starvation</li>
+                                </ul>
+                            </div>
+                        </div>
+                        
+                        <div class="definition-card bg-white p-4 rounded-lg border-l-4 border-teal-500 shadow">
+                            <h4 class="text-lg font-medium mb-2">Multi-level Priority Scheduling</h4>
+                            <p class="text-gray-700">This algorithm partitions the ready queue into several separate queues based on priority. Each queue has its own scheduling algorithm and processes can move between queues.</p>
+                            <div class="mt-3">
+                                <h5 class="font-medium text-gray-800">Characteristics:</h5>
+                                <ul class="list-disc list-inside text-gray-700 mt-1">
+                                    <li>Processes are permanently assigned to a queue based on some property (memory size, priority, process type)</li>
+                                    <li>Each queue has its own scheduling algorithm</li>
+                                    <li>There must be scheduling between queues (typically fixed priority)</li>
+                                    <li>Provides flexibility in handling different types of processes</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Advanced Algorithms -->
+                <div>
+                    <h3 class="text-xl font-semibold mb-3 text-pink-700">Advanced Scheduling Algorithms</h3>
+                    
+                    <div class="definition-card bg-white p-4 rounded-lg border-l-4 border-pink-500 shadow">
+                        <h4 class="text-lg font-medium mb-2">Adaptive Quantum-Inspired Learning Scheduler (AQLS)</h4>
+                        <p class="text-gray-700">AQLS is an advanced scheduling algorithm that dynamically adjusts the time quantum for each process based on its behavior, priority, and remaining burst time. It uses machine learning principles to optimize scheduling decisions.</p>
+                        <div class="mt-3">
+                            <h5 class="font-medium text-gray-800">Characteristics:</h5>
+                            <ul class="list-disc list-inside text-gray-700 mt-1">
+                                <li>Dynamically adjusts time quantum based on process behavior</li>
+                                <li>Considers multiple factors: priority, burst time, and execution history</li>
+                                <li>Uses a learning rate to adapt to changing process patterns</li>
+                                <li>Balances throughput and response time</li>
+                                <li>Reduces waiting time for high-priority and shorter processes</li>
+                                <li>More complex implementation but potentially better performance</li>
+                            </ul>
+                        </div>
+                        <div class="mt-3">
+                            <h5 class="font-medium text-gray-800">How it works:</h5>
+                            <p class="text-gray-700">AQLS assigns an initial time quantum to each process. As processes execute, their quantum is adjusted based on:</p>
+                            <ul class="list-disc list-inside text-gray-700 mt-1">
+                                <li>If a process doesn't complete in its quantum, its quantum is increased</li>
+                                <li>If a process completes before its quantum expires, future quantum is decreased</li>
+                                <li>Process priority and remaining burst time influence quantum adjustments</li>
+                                <li>A learning rate controls how quickly the algorithm adapts</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Comparison Table -->
+                <div>
+                    <h3 class="text-xl font-semibold mb-3 text-gray-700">Algorithm Comparison</h3>
+                    
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full bg-white border border-gray-200">
+                            <thead>
+                                <tr>
+                                    <th class="px-4 py-2 border-b border-gray-200 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Algorithm</th>
+                                    <th class="px-4 py-2 border-b border-gray-200 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Preemptive</th>
+                                    <th class="px-4 py-2 border-b border-gray-200 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Advantages</th>
+                                    <th class="px-4 py-2 border-b border-gray-200 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Disadvantages</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-200">
+                                <tr>
+                                    <td class="px-4 py-2">FCFS</td>
+                                    <td class="px-4 py-2">No</td>
+                                    <td class="px-4 py-2">Simple, easy to implement</td>
+                                    <td class="px-4 py-2">Convoy effect, high waiting time</td>
+                                </tr>
+                                <tr>
+                                    <td class="px-4 py-2">SJF</td>
+                                    <td class="px-4 py-2">Can be both</td>
+                                    <td class="px-4 py-2">Minimum average waiting time</td>
+                                    <td class="px-4 py-2">Requires knowledge of burst time, starvation</td>
+                                </tr>
+                                <tr>
+                                    <td class="px-4 py-2">Round Robin</td>
+                                    <td class="px-4 py-2">Yes</td>
+                                    <td class="px-4 py-2">Fair CPU allocation, good response time</td>
+                                    <td class="px-4 py-2">High context switching, quantum selection critical</td>
+                                </tr>
+                                <tr>
+                                    <td class="px-4 py-2">Priority</td>
+                                    <td class="px-4 py-2">Can be both</td>
+                                    <td class="px-4 py-2">Prioritizes important processes</td>
+                                    <td class="px-4 py-2">Starvation of low priority processes</td>
+                                </tr>
+                                <tr>
+                                    <td class="px-4 py-2">Multi-level Priority</td>
+                                    <td class="px-4 py-2">Can be both</td>
+                                    <td class="px-4 py-2">Flexible, handles different process types</td>
+                                    <td class="px-4 py-2">Complex implementation, potential starvation</td>
+                                </tr>
+                                <tr>
+                                    <td class="px-4 py-2">AQLS</td>
+                                    <td class="px-4 py-2">Yes</td>
+                                    <td class="px-4 py-2">Adaptive, balances multiple factors</td>
+                                    <td class="px-4 py-2">Complex implementation, parameter tuning</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <footer class="bg-gray-800 text-white py-6">
+        <div class="container mx-auto px-4 text-center">
+            <p>CPU Process Scheduling Visualizer And Disk Scheduling Alogrithms Visualizer</p>
+            <p class="text-sm opacity-75 mt-1">A tool to help understand different CPU scheduling algorithms along with Disk Scheduling algorithms</p>
+        </div>
+    </footer>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        let processes = [];
+        let currentProcessId = 1;
+        
+        // DOM Elements
+        const processIdInput = document.getElementById('process-id');
+        const arrivalTimeInput = document.getElementById('arrival-time');
+        const burstTimeInput = document.getElementById('burst-time');
+        const priorityInput = document.getElementById('priority');
+        const addProcessBtn = document.getElementById('add-process');
+        const generateRandomBtn = document.getElementById('generate-random');
+        const clearProcessesBtn = document.getElementById('clear-processes');
+        const processTableBody = document.getElementById('process-table-body');
+        const noProcessesMessage = document.getElementById('no-processes-message');
+        const resultsSection = document.getElementById('results-section');
+        const visualizeButtons = document.querySelectorAll('.visualize-btn');
+        const currentAlgorithmTitle = document.getElementById('current-algorithm');
+        const avgWaitingTimeSpan = document.getElementById('avg-waiting-time');
+        const avgTurnaroundTimeSpan = document.getElementById('avg-turnaround-time');
+        const cpuUtilizationSpan = document.getElementById('cpu-utilization');
+        const ganttChartContainer = document.getElementById('gantt-chart-container');
+        const processTimeline = document.getElementById('process-timeline');
+        const timeQuantumInput = document.getElementById('time-quantum');
+        const algorithmDetails = document.getElementById('algorithm-details');
+        const algorithmDetailsContent = document.getElementById('algorithm-details-content');
+        
+        // Definitions Modal
+        const definitionsModal = document.getElementById('definitions-modal');
+        const showDefinitionsBtn = document.getElementById('show-definitions');
+        const closeDefinitionsBtn = document.getElementById('close-definitions');
+        
+        showDefinitionsBtn.addEventListener('click', () => {
+            definitionsModal.style.display = 'block';
+            document.body.style.overflow = 'hidden'; // Prevent scrolling behind modal
+        });
+        
+        closeDefinitionsBtn.addEventListener('click', () => {
+            definitionsModal.style.display = 'none';
+            document.body.style.overflow = 'auto'; // Restore scrolling
+        });
+        
+        // Close modal when clicking outside of it
+        window.addEventListener('click', (event) => {
+            if (event.target === definitionsModal) {
+                definitionsModal.style.display = 'none';
+                document.body.style.overflow = 'auto';
+            }
+        });
+        
+        // Tab navigation
+        const tabButtons = document.querySelectorAll('.tab-button');
+        const tabContents = document.querySelectorAll('.tab-content');
+        
+        tabButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                const tabId = button.getAttribute('data-tab');
+                
+                // Update active tab button
+                tabButtons.forEach(btn => btn.classList.remove('active'));
+                button.classList.add('active');
+                
+                // Show selected tab content
+                tabContents.forEach(content => content.classList.remove('active'));
+                document.getElementById(`${tabId}-tab`).classList.add('active');
+            });
+        });
+        
+        // Initialize with default process ID
+        processIdInput.value = `P${currentProcessId}`;
+        
+        // Event Listeners
+        addProcessBtn.addEventListener('click', addProcess);
+        generateRandomBtn.addEventListener('click', generateRandomProcesses);
+        clearProcessesBtn.addEventListener('click', clearProcesses);
+        
+        visualizeButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                const algorithm = button.getAttribute('data-algorithm');
+                visualizeAlgorithm(algorithm);
+            });
+        });
+        
+        // Functions
+        function addProcess() {
+            const id = processIdInput.value.trim();
+            const arrivalTime = parseInt(arrivalTimeInput.value) || 0;
+            const burstTime = parseInt(burstTimeInput.value) || 1;
+            const priority = parseInt(priorityInput.value) || 1;
+            
+            if (!id) {
+                alert('Please enter a Process ID');
+                return;
+            }
+            
+            if (burstTime <= 0) {
+                alert('Burst time must be greater than 0');
+                return;
+            }
+            
+            // Check for duplicate process ID
+            if (processes.some(p => p.id === id)) {
+                alert('Process ID already exists. Please use a unique ID.');
+                return;
+            }
+            
+            const process = {
+                id,
+                arrivalTime,
+                burstTime,
+                priority,
+                remainingTime: burstTime
+            };
+            
+            processes.push(process);
+            updateProcessTable();
+            
+            // Increment process ID for next input
+            currentProcessId++;
+            processIdInput.value = `P${currentProcessId}`;
+            arrivalTimeInput.value = '';
+            burstTimeInput.value = '';
+            priorityInput.value = '';
+        }
+        
+        function generateRandomProcesses() {
+            clearProcesses();
+            
+            const count = Math.floor(Math.random() * 3) + 3; // 3-5 processes
+            
+            for (let i = 0; i < count; i++) {
+                const process = {
+                    id: `P${i+1}`,
+                    arrivalTime: Math.floor(Math.random() * 10),
+                    burstTime: Math.floor(Math.random() * 10) + 1,
+                    priority: Math.floor(Math.random() * 10) + 1
+                };
+                process.remainingTime = process.burstTime;
+                processes.push(process);
+            }
+            
+            currentProcessId = count + 1;
+            processIdInput.value = `P${currentProcessId}`;
+            
+            updateProcessTable();
+        }
+        
+        function clearProcesses() {
+            processes = [];
+            currentProcessId = 1;
+            processIdInput.value = `P${currentProcessId}`;
+            updateProcessTable();
+            resultsSection.classList.add('hidden');
+        }
+        
+        function updateProcessTable() {
+            processTableBody.innerHTML = '';
+            
+            if (processes.length === 0) {
+                noProcessesMessage.classList.remove('hidden');
+                return;
+            }
+            
+            noProcessesMessage.classList.add('hidden');
+            
+            processes.forEach((process, index) => {
+                const row = document.createElement('tr');
+                
+                row.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap">${process.id}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">${process.arrivalTime}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">${process.burstTime}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">${process.priority}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <button class="text-red-600 hover:text-red-900" onclick="deleteProcess(${index})">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
+                            </svg>
+                        </button>
+                    </td>
+                `;
+                
+                processTableBody.appendChild(row);
+            });
+        }
+        
+        // Make deleteProcess available globally
+        window.deleteProcess = function(index) {
+            processes.splice(index, 1);
+            updateProcessTable();
+            
+            if (processes.length === 0) {
+                resultsSection.classList.add('hidden');
+            }
+        };
+        
+        function visualizeAlgorithm(algorithm) {
+            if (processes.length === 0) {
+                alert('Please add processes first');
+                return;
+            }
+            
+            // Reset remaining time for all processes
+            processes.forEach(p => p.remainingTime = p.burstTime);
+            
+            let schedule = [];
+            let waitingTimes = [];
+            let turnaroundTimes = [];
+            let algorithmName = '';
+            let algorithmDetailsText = '';
+            
+            // Deep copy processes to avoid modifying the original array
+            const processesToSchedule = JSON.parse(JSON.stringify(processes));
+            
+            switch(algorithm) {
+                case 'fcfs':
+                    algorithmName = 'First Come First Served (FCFS)';
+                    schedule = fcfs(processesToSchedule);
+                    break;
+                case 'sjf':
+                    algorithmName = 'Shortest Job First (SJF)';
+                    schedule = sjf(processesToSchedule);
+                    break;
+                case 'rr':
+                    const timeQuantum = parseInt(timeQuantumInput.value) || 2;
+                    algorithmName = `Round Robin (RR) - Time Quantum: ${timeQuantum}`;
+                    schedule = roundRobin(processesToSchedule, timeQuantum);
+                    break;
+                case 'priority':
+                    const isPreemptive = document.getElementById('priority-preemptive').checked;
+                    algorithmName = `Priority Scheduling (${isPreemptive ? 'Preemptive' : 'Non-preemptive'})`;
+                    schedule = priorityScheduling(processesToSchedule, isPreemptive);
+                    break;
+                case 'multilevel':
+                    const highPriorityAlgo = document.getElementById('high-priority-algo').value;
+                    const lowPriorityAlgo = document.getElementById('low-priority-algo').value;
+                    const highPriorityQuantum = parseInt(document.getElementById('high-priority-quantum').value) || 2;
+                    const lowPriorityQuantum = parseInt(document.getElementById('low-priority-quantum').value) || 4;
+                    const priorityThreshold = parseInt(document.getElementById('priority-threshold').value) || 5;
+                    
+                    algorithmName = 'Multi-level Priority Scheduling';
+                    const mlResult = multiLevelPriorityScheduling(
+                        processesToSchedule, 
+                        highPriorityAlgo, 
+                        lowPriorityAlgo, 
+                        highPriorityQuantum, 
+                        lowPriorityQuantum, 
+                        priorityThreshold
+                    );
+                    
+                    schedule = mlResult.schedule;
+                    algorithmDetailsText = mlResult.details;
+                    break;
+                case 'aqls':
+                    const initialQuantum = parseInt(document.getElementById('aqls-initial-quantum').value) || 2;
+                    const learningRate = parseFloat(document.getElementById('aqls-learning-rate').value) || 0.5;
+                    const priorityWeight = parseFloat(document.getElementById('aqls-priority-weight').value) || 0.3;
+                    const burstWeight = parseFloat(document.getElementById('aqls-burst-weight').value) || 0.7;
+                    
+                    algorithmName = 'Adaptive Quantum-Inspired Learning Scheduler (AQLS)';
+                    const aqlsResult = adaptiveQuantumLearningScheduler(
+                        processesToSchedule, 
+                        initialQuantum, 
+                        learningRate, 
+                        priorityWeight, 
+                        burstWeight
+                    );
+                    
+                    schedule = aqlsResult.schedule;
+                    algorithmDetailsText = aqlsResult.details;
+                    break;
+            }
+            
+            // Calculate waiting and turnaround times
+            const completionTimes = calculateCompletionTimes(schedule, processesToSchedule);
+            
+            processesToSchedule.forEach(p => {
+                const completionTime = completionTimes[p.id];
+                const turnaroundTime = completionTime - p.arrivalTime;
+                const waitingTime = turnaroundTime - p.burstTime;
+                
+                waitingTimes.push(waitingTime);
+                turnaroundTimes.push(turnaroundTime);
+            });
+            
+            const avgWaitingTime = waitingTimes.reduce((a, b) => a + b, 0) / waitingTimes.length;
+            const avgTurnaroundTime = turnaroundTimes.reduce((a, b) => a + b, 0) / turnaroundTimes.length;
+            
+            // Calculate CPU utilization
+            if (schedule.length > 0) {
+                const totalTime = schedule[schedule.length - 1].end;
+                const busyTime = schedule.reduce((sum, item) => sum + (item.end - item.start), 0);
+                const cpuUtilization = (busyTime / totalTime) * 100;
+                cpuUtilizationSpan.textContent = `${cpuUtilization.toFixed(2)}%`;
+            } else {
+                cpuUtilizationSpan.textContent = '0%';
+            }
+            
+            // Update UI
+            currentAlgorithmTitle.textContent = algorithmName;
+            avgWaitingTimeSpan.textContent = avgWaitingTime.toFixed(2);
+            avgTurnaroundTimeSpan.textContent = avgTurnaroundTime.toFixed(2);
+            
+            renderGanttChart(schedule);
+            renderProcessTimeline(schedule, processesToSchedule);
+            
+            // Show algorithm details if available
+            if (algorithmDetailsText) {
+                algorithmDetailsContent.innerHTML = algorithmDetailsText;
+                algorithmDetails.classList.remove('hidden');
+            } else {
+                algorithmDetails.classList.add('hidden');
+            }
+            
+            resultsSection.classList.remove('hidden');
+            resultsSection.scrollIntoView({ behavior: 'smooth' });
+        }
+        
+        function fcfs(processes) {
+            // Sort by arrival time
+            processes.sort((a, b) => a.arrivalTime - b.arrivalTime);
+            
+            let currentTime = 0;
+            let schedule = [];
+            let readyQueue = [];
+            let processIndex = 0;
+            
+            while (processIndex < processes.length || readyQueue.length > 0) {
+                // Add processes that have arrived to the ready queue
+                while (processIndex < processes.length && processes[processIndex].arrivalTime <= currentTime) {
+                    readyQueue.push(processes[processIndex]);
+                    processIndex++;
+                }
+                
+                if (readyQueue.length === 0) {
+                    // No process available, advance time to next arrival
+                    currentTime = processes[processIndex].arrivalTime;
+                    continue;
+                }
+                
+                // Get the first process in the queue
+                const currentProcess = readyQueue.shift();
+                
+                // Execute the process
+                schedule.push({
+                    id: currentProcess.id,
+                    start: currentTime,
+                    end: currentTime + currentProcess.burstTime
+                });
+                
+                // Update current time
+                currentTime += currentProcess.burstTime;
+            }
+            
+            return schedule;
+        }
+        
+        function sjf(processes) {
+            processes.sort((a, b) => a.arrivalTime - b.arrivalTime);
+            
+            let currentTime = 0;
+            let schedule = [];
+            let readyQueue = [];
+            let processIndex = 0;
+            let completed = 0;
+            
+            while (completed < processes.length) {
+                // Add processes that have arrived to the ready queue
+                while (processIndex < processes.length && processes[processIndex].arrivalTime <= currentTime) {
+                    readyQueue.push(processes[processIndex]);
+                    processIndex++;
+                }
+                
+                if (readyQueue.length === 0) {
+                    // No process available, advance time to next arrival
+                    currentTime = processes[processIndex].arrivalTime;
+                    continue;
+                }
+                
+                // Sort ready queue by burst time (shortest first)
+                readyQueue.sort((a, b) => a.burstTime - b.burstTime);
+                
+                // Get the process with shortest burst time
+                const currentProcess = readyQueue.shift();
+                
+                // Execute the process
+                schedule.push({
+                    id: currentProcess.id,
+                    start: currentTime,
+                    end: currentTime + currentProcess.burstTime
+                });
+                
+                // Update current time
+                currentTime += currentProcess.burstTime;
+                completed++;
+            }
+            
+            return schedule;
+        }
+        
+        function roundRobin(processes, timeQuantum) {
+            processes.sort((a, b) => a.arrivalTime - b.arrivalTime);
+            
+            let currentTime = 0;
+            let schedule = [];
+            let readyQueue = [];
+            let processIndex = 0;
+            let completed = 0;
+            
+            while (completed < processes.length) {
+                // Add processes that have arrived to the ready queue
+                while (processIndex < processes.length && processes[processIndex].arrivalTime <= currentTime) {
+                    readyQueue.push(processes[processIndex]);
+                    processIndex++;
+                }
+                
+                if (readyQueue.length === 0) {
+                    // No process available, advance time to next arrival
+                    currentTime = processes[processIndex].arrivalTime;
+                    continue;
+                }
+                
+                // Get the first process in the queue
+                const currentProcess = readyQueue.shift();
+                
+                // Calculate execution time for this quantum
+                const executionTime = Math.min(timeQuantum, currentProcess.remainingTime);
+                
+                // Execute the process for the quantum or remaining time
+                schedule.push({
+                    id: currentProcess.id,
+                    start: currentTime,
+                    end: currentTime + executionTime
+                });
+                
+                // Update current time and remaining time
+                currentTime += executionTime;
+                currentProcess.remainingTime -= executionTime;
+                
+                // Add newly arrived processes to ready queue
+                while (processIndex < processes.length && processes[processIndex].arrivalTime <= currentTime) {
+                    readyQueue.push(processes[processIndex]);
+                    processIndex++;
+                }
+                
+                // If process is not finished, put it back in the queue
+                if (currentProcess.remainingTime > 0) {
+                    readyQueue.push(currentProcess);
+                } else {
+                    completed++;
+                }
+            }
+            
+            return schedule;
+        }
+        
+        function priorityScheduling(processes, isPreemptive) {
+            processes.sort((a, b) => a.arrivalTime - b.arrivalTime);
+            
+            let currentTime = 0;
+            let schedule = [];
+            let readyQueue = [];
+            let processIndex = 0;
+            let completed = 0;
+            let currentProcess = null;
+            let lastEndTime = 0;
+            
+            while (completed < processes.length) {
+                // Add processes that have arrived to the ready queue
+                while (processIndex < processes.length && processes[processIndex].arrivalTime <= currentTime) {
+                    readyQueue.push(processes[processIndex]);
+                    processIndex++;
+                }
+                
+                if (readyQueue.length === 0) {
+                    // No process available, advance time to next arrival
+                    if (processIndex < processes.length) {
+                        currentTime = processes[processIndex].arrivalTime;
+                    } else {
+                        break; // All processes have been scheduled
+                    }
+                    continue;
+                }
+                
+                // Sort ready queue by priority (lower number = higher priority)
+                readyQueue.sort((a, b) => a.priority - b.priority);
+                
+                if (isPreemptive && currentProcess && currentProcess.remainingTime > 0) {
+                    // Check if the highest priority process in the queue has higher priority than current process
+                    if (readyQueue[0].priority < currentProcess.priority) {
+                        // Preempt the current process
+                        if (currentTime > lastEndTime) {
+                            schedule.push({
+                                id: currentProcess.id,
+                                start: lastEndTime,
+                                end: currentTime
+                            });
+                            lastEndTime = currentTime;
+                        }
+                        
+                        // Add current process back to ready queue
+                        readyQueue.push(currentProcess);
+                        currentProcess = null;
+                    }
+                }
+                
+                if (!currentProcess || currentProcess.remainingTime <= 0) {
+                    // Get the highest priority process
+                    currentProcess = readyQueue.shift();
+                    lastEndTime = currentTime;
+                }
+                
+                // For non-preemptive or if no preemption occurred
+                if (isPreemptive) {
+                    // Execute for 1 time unit
+                    currentTime += 1;
+                    currentProcess.remainingTime -= 1;
+                    
+                    if (currentProcess.remainingTime <= 0) {
+                        // Process completed
+                        schedule.push({
+                            id: currentProcess.id,
+                            start: lastEndTime,
+                            end: currentTime
+                        });
+                        lastEndTime = currentTime;
+                        completed++;
+                        currentProcess = null;
+                    }
+                } else {
+                    // Non-preemptive: execute the entire process
+                    schedule.push({
+                        id: currentProcess.id,
+                        start: currentTime,
+                        end: currentTime + currentProcess.remainingTime
+                    });
+                    
+                    currentTime += currentProcess.remainingTime;
+                    currentProcess.remainingTime = 0;
+                    completed++;
+                    currentProcess = null;
+                }
+            }
+            
+            // If there's a process still being executed at the end
+            if (isPreemptive && currentProcess && currentProcess.remainingTime > 0 && currentTime > lastEndTime) {
+                schedule.push({
+                    id: currentProcess.id,
+                    start: lastEndTime,
+                    end: currentTime
+                });
+            }
+            
+            // Merge consecutive blocks for the same process
+            return mergeConsecutiveBlocks(schedule);
+        }
+        
+        function multiLevelPriorityScheduling(processes, highPriorityAlgo, lowPriorityAlgo, highPriorityQuantum, lowPriorityQuantum, priorityThreshold) {
+            // Clone processes to avoid modifying the original
+            const processesToSchedule = JSON.parse(JSON.stringify(processes));
+            
+            // Divide processes into high and low priority queues
+            const highPriorityProcesses = processesToSchedule.filter(p => p.priority <= priorityThreshold);
+            const lowPriorityProcesses = processesToSchedule.filter(p => p.priority > priorityThreshold);
+            
+            let schedule = [];
+            let currentTime = 0;
+            let highPriorityCompleted = false;
+            let details = '';
+            
+            // First, schedule high priority processes
+            details += `<p class="font-medium">High Priority Queue (Priority <= ${priorityThreshold}):</p>`;
+            details += `<p>Algorithm: ${getAlgorithmName(highPriorityAlgo, highPriorityQuantum)}</p>`;
+            details += `<p>Processes: ${highPriorityProcesses.map(p => p.id).join(', ') || 'None'}</p>`;
+            
+            if (highPriorityProcesses.length > 0) {
+                let highPrioritySchedule;
+                
+                switch (highPriorityAlgo) {
+                    case 'fcfs':
+                        highPrioritySchedule = fcfs(highPriorityProcesses);
+                        break;
+                    case 'sjf':
+                        highPrioritySchedule = sjf(highPriorityProcesses);
+                        break;
+                    case 'rr':
+                        highPrioritySchedule = roundRobin(highPriorityProcesses, highPriorityQuantum);
+                        break;
+                }
+                
+                schedule = highPrioritySchedule;
+                if (schedule.length > 0) {
+                    currentTime = schedule[schedule.length - 1].end;
+                }
+            }
+            
+            // Then, schedule low priority processes
+            details += `<p class="font-medium mt-2">Low Priority Queue (Priority > ${priorityThreshold}):</p>`;
+            details += `<p>Algorithm: ${getAlgorithmName(lowPriorityAlgo, lowPriorityQuantum)}</p>`;
+            details += `<p>Processes: ${lowPriorityProcesses.map(p => p.id).join(', ') || 'None'}</p>`;
+            
+            if (lowPriorityProcesses.length > 0) {
+                // Adjust arrival times for low priority processes if they're less than current time
+                lowPriorityProcesses.forEach(p => {
+                    if (p.arrivalTime < currentTime) {
+                        p.arrivalTime = currentTime;
+                    }
+                });
+                
+                let lowPrioritySchedule;
+                
+                switch (lowPriorityAlgo) {
+                    case 'fcfs':
+                        lowPrioritySchedule = fcfs(lowPriorityProcesses);
+                        break;
+                    case 'sjf':
+                        lowPrioritySchedule = sjf(lowPriorityProcesses);
+                        break;
+                    case 'rr':
+                        lowPrioritySchedule = roundRobin(lowPriorityProcesses, lowPriorityQuantum);
+                        break;
+                }
+                
+                schedule = schedule.concat(lowPrioritySchedule);
+            }
+            
+            return { schedule, details };
+        }
+        
+        function adaptiveQuantumLearningScheduler(processes, initialQuantum, learningRate, priorityWeight, burstWeight) {
+            // Clone processes to avoid modifying the original
+            const processesToSchedule = JSON.parse(JSON.stringify(processes));
+            processesToSchedule.sort((a, b) => a.arrivalTime - b.arrivalTime);
+            
+            let currentTime = 0;
+            let schedule = [];
+            let readyQueue = [];
+            let processIndex = 0;
+            let completed = 0;
+            let quantumHistory = {};
+            let details = '';
+            
+            // Initialize quantum for each process
+            processesToSchedule.forEach(p => {
+                quantumHistory[p.id] = initialQuantum;
+            });
+            
+            details += `<p class="font-medium">AQLS Parameters:</p>`;
+            details += `<p>Initial Time Quantum: ${initialQuantum}</p>`;
+            details += `<p>Learning Rate: ${learningRate}</p>`;
+            details += `<p>Priority Weight: ${priorityWeight}</p>`;
+            details += `<p>Burst Time Weight: ${burstWeight}</p>`;
+            details += `<p class="font-medium mt-2">Quantum Adjustments:</p>`;
+            
+            while (completed < processesToSchedule.length) {
+                // Add processes that have arrived to the ready queue
+                while (processIndex < processesToSchedule.length && processesToSchedule[processIndex].arrivalTime <= currentTime) {
+                    readyQueue.push(processesToSchedule[processIndex]);
+                    processIndex++;
+                }
+                
+                if (readyQueue.length === 0) {
+                    // No process available, advance time to next arrival
+                    if (processIndex < processesToSchedule.length) {
+                        currentTime = processesToSchedule[processIndex].arrivalTime;
+                    } else {
+                        break; // All processes have been scheduled
+                    }
+                    continue;
+                }
+                
+                // Calculate dynamic score for each process in ready queue
+                readyQueue.forEach(p => {
+                    // Lower score is better (like priority)
+                    p.score = (priorityWeight * p.priority) + (burstWeight * (p.remainingTime / p.burstTime));
+                });
+                
+                // Sort by score (lower is better)
+                readyQueue.sort((a, b) => a.score - b.score);
+                
+                // Get the process with best score
+                const currentProcess = readyQueue.shift();
+                const currentQuantum = quantumHistory[currentProcess.id];
+                
+                // Calculate execution time for this quantum
+                const executionTime = Math.min(currentQuantum, currentProcess.remainingTime);
+                
+                // Execute the process
+                schedule.push({
+                    id: currentProcess.id,
+                    start: currentTime,
+                    end: currentTime + executionTime
+                });
+                
+                // Update current time and remaining time
+                currentTime += executionTime;
+                currentProcess.remainingTime -= executionTime;
+                
+                // Add newly arrived processes to ready queue
+                while (processIndex < processesToSchedule.length && processesToSchedule[processIndex].arrivalTime <= currentTime) {
+                    readyQueue.push(processesToSchedule[processIndex]);
+                    processIndex++;
+                }
+                
+                // Adjust quantum based on process behavior
+                if (currentProcess.remainingTime > 0) {
+                    // Process didn't complete in its quantum - might need more time
+                    const oldQuantum = quantumHistory[currentProcess.id];
+                    const newQuantum = Math.min(oldQuantum * (1 + learningRate), currentProcess.remainingTime * 2);
+                    quantumHistory[currentProcess.id] = newQuantum;
+                    
+                    details += `<p>${currentProcess.id}: ${oldQuantum.toFixed(1)} → ${newQuantum.toFixed(1)} (increased)</p>`;
+                    
+                    // Put back in ready queue
+                    readyQueue.push(currentProcess);
+                } else {
+                    // Process completed - adjust quantum for future reference
+                    const oldQuantum = quantumHistory[currentProcess.id];
+                    const newQuantum = oldQuantum * (1 - learningRate * 0.5);
+                    quantumHistory[currentProcess.id] = newQuantum;
+                    
+                    details += `<p>${currentProcess.id}: ${oldQuantum.toFixed(1)} → ${newQuantum.toFixed(1)} (completed)</p>`;
+                    
+                    completed++;
+                }
+            }
+            
+            // Merge consecutive blocks for the same process
+            return { schedule: mergeConsecutiveBlocks(schedule), details };
+        }
+        
+        function mergeConsecutiveBlocks(schedule) {
+            if (schedule.length <= 1) return schedule;
+            
+            const mergedSchedule = [schedule[0]];
+            
+            for (let i = 1; i < schedule.length; i++) {
+                const current = schedule[i];
+                const previous = mergedSchedule[mergedSchedule.length - 1];
+                
+                if (current.id === previous.id && current.start === previous.end) {
+                    // Merge blocks
+                    previous.end = current.end;
+                } else {
+                    mergedSchedule.push(current);
+                }
+            }
+            
+            return mergedSchedule;
+        }
+        
+        function getAlgorithmName(algo, quantum) {
+            switch (algo) {
+                case 'fcfs': return 'First Come First Served';
+                case 'sjf': return 'Shortest Job First';
+                case 'rr': return `Round Robin (Quantum: ${quantum})`;
+                default: return algo;
+            }
+        }
+        
+        function calculateCompletionTimes(schedule, processes) {
+            const completionTimes = {};
+            
+            // Initialize with process IDs
+            processes.forEach(p => {
+                completionTimes[p.id] = 0;
+            });
+            
+            // Find the last time each process appears in the schedule
+            schedule.forEach(item => {
+                if (item.end > completionTimes[item.id]) {
+                    completionTimes[item.id] = item.end;
+                }
+            });
+            
+            return completionTimes;
+        }
+        
+        function renderGanttChart(schedule) {
+            ganttChartContainer.innerHTML = '';
+            
+            if (schedule.length === 0) return;
+            
+            const totalTime = schedule[schedule.length - 1].end;
+            const timeUnit = 40; // pixels per time unit
+            const height = 50;
+            
+            // Create container with appropriate width
+            const chartWidth = totalTime * timeUnit;
+            ganttChartContainer.style.width = `${chartWidth}px`;
+            ganttChartContainer.style.height = `${height}px`;
+            
+            // Generate color map for processes
+            const processColors = {};
+            const colors = [
+                'bg-blue-500', 'bg-green-500', 'bg-purple-500', 
+                'bg-yellow-500', 'bg-red-500', 'bg-indigo-500',
+                'bg-pink-500', 'bg-teal-500', 'bg-orange-500',
+                'bg-cyan-500', 'bg-lime-500', 'bg-amber-500'
+            ];
+            
+            schedule.forEach((item, index) => {
+                if (!processColors[item.id]) {
+                    processColors[item.id] = colors[Object.keys(processColors).length % colors.length];
+                }
+            });
+            
+            // Create blocks for each scheduled item
+            schedule.forEach(item => {
+                const block = document.createElement('div');
+                block.className = `process-block absolute ${processColors[item.id]} text-white flex items-center justify-center text-sm font-medium rounded-sm`;
+                block.style.left = `${item.start * timeUnit}px`;
+                block.style.width = `${(item.end - item.start) * timeUnit}px`;
+                block.style.height = `${height}px`;
+                block.textContent = item.id;
+                
+                ganttChartContainer.appendChild(block);
+            });
+            
+            // Add time markers
+            for (let i = 0; i <= totalTime; i++) {
+                const marker = document.createElement('div');
+                marker.className = 'timeline-marker';
+                marker.style.left = `${i * timeUnit}px`;
+                
+                const label = document.createElement('div');
+                label.className = 'timeline-label';
+                label.style.left = `${i * timeUnit}px`;
+                label.textContent = i;
+                
+                ganttChartContainer.appendChild(marker);
+                ganttChartContainer.appendChild(label);
+            }
+        }
+        
+        function renderProcessTimeline(schedule, processes) {
+            processTimeline.innerHTML = '';
+            
+            if (schedule.length === 0) return;
+            
+            const totalTime = schedule[schedule.length - 1].end;
+            const timeUnit = 40; // pixels per time unit
+            
+            // Generate color map for processes
+            const processColors = {};
+            const colors = [
+                'bg-blue-500', 'bg-green-500', 'bg-purple-500', 
+                'bg-yellow-500', 'bg-red-500', 'bg-indigo-500',
+                'bg-pink-500', 'bg-teal-500', 'bg-orange-500',
+                'bg-cyan-500', 'bg-lime-500', 'bg-amber-500'
+            ];
+            
+            schedule.forEach(item => {
+                if (!processColors[item.id]) {
+                    processColors[item.id] = colors[Object.keys(processColors).length % colors.length];
+                }
+            });
+            
+            // Sort processes by ID for consistent display
+            processes.sort((a, b) => a.id.localeCompare(b.id));
+            
+            // Create a timeline for each process
+            processes.forEach(process => {
+                const row = document.createElement('div');
+                row.className = 'process-row flex items-center';
+                
+                // Process label
+                const label = document.createElement('div');
+                label.className = 'w-16 font-medium text-gray-700';
+                label.textContent = process.id;
+                
+                // Timeline container
+                const timeline = document.createElement('div');
+                timeline.className = 'flex-1 relative h-6';
+                timeline.style.width = `${totalTime * timeUnit}px`;
+                
+                // Add blocks for this process
+                const processSchedule = schedule.filter(item => item.id === process.id);
+                processSchedule.forEach(item => {
+                    const block = document.createElement('div');
+                    block.className = `process-block absolute ${processColors[process.id]} rounded-sm`;
+                    block.style.left = `${item.start * timeUnit}px`;
+                    block.style.width = `${(item.end - item.start) * timeUnit}px`;
+                    block.style.height = '24px';
+                    
+                    timeline.appendChild(block);
+                });
+                
+                row.appendChild(label);
+                row.appendChild(timeline);
+                processTimeline.appendChild(row);
+            });
+        }
+    });
+</script>
